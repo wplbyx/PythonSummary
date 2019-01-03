@@ -2,32 +2,182 @@ from django.db import models
 from xadmin.models import UserSettings  # 映入 xadmin 用户表
 from DjangoUeditor.models import UEditorField
 
+    
 """
-	tb_user
-	tb_role
-	tb_permiss
+    人员 : 实际使用系统的用户，也就是需要进行权限检查的人
+   *组织 : 树形结构，但是人员可以属于一个或者多个组织
+   *资源 : 需要授权的东西都可以认为是资源，每个功能是资源，每个接口也是资源，每条数据也是资源。
+   *动作 : 对资源的操作， CRUD
+    权限 : 组织 + 资源 + 动作 （什么人对什么资源可以做什么动作）
 
-
-	tb_banner 系统前台首页轮播图
-    tb_menu   系统菜单导航
-    tb_label  系统标签
-
-
-	
-
-    tb_course
-    tb_section
-    tb_video
-    tb_article
-    tb_resource
-    tb_comments
+    人员 - 组织  多对多
+    
+    
+    
+    
 """
 
 
-# Create your models here.
+    
+class User(models.Model):
+    """ 用户模型表 """
+
+    class Meta:
+        db_table = 'tb_user'  # 模型映射到数据库名称
+        verbose_name = "用户"
+        verbose_name_plural = verbose_name
+
+    user_name = models.CharField('用户名称', max_length=48, default='无')
+    user_pwd = models.CharField('用户密码', max_length=128, default='无')
+    user_email = models.CharField('用户邮箱', max_length=128, default='无')
+    user_tel = models.CharField('用户电话', max_length=12, default='无')
+    user_phone = models.CharField('用户手机', max_length=12, default='无')
+    
+    user_create_time = models.DateTimeField('创建时间', auto_now_add=True)
+    user_modify_time = models.DateTimeField('最后修改时间', auto_now_add=True)
+    
+    # 用户与组织多对多关联:
+    user_org = models.ManyToManyField(verbose_name="用户角色", to="Org", null=True, blank=True)
+    
+    def __str__(self): 
+        return self.user_name
+    
+    
+class Org(models.Model):
+    """ 组织表 """
+    class Meta:
+        verbose_name = "角色"
+        verbose_name_plural = verbose_name
+        
+    org_name = models.CharField("组织名称", max_length=36, default='无')
+    org_level = models.IntegerField('组织层级', default=0)  # 可以理解成组织分类
+    
+    org_created_time = models.DateTimeField('创建时间', auto_now_add=True)
+
+    # 设置组织的父级组织
+    org_parent = models.ForeignKey(verbose_name='父级组织', to='self', null=True, blank=True)
+
+    def __str__(self):
+        return self.org_name
+
+
+class Res(models.Model):
+    """ 抽象资源表 """
+    class Meta:
+        verbose_name = "操作"
+        verbose_name_plural = verbose_name
+        
+    res_name = models.CharField("资源名称", max_length=36, default='无')
+    res_type = models.CharField('资源类型', default=0)
+    res_code = models.CharField('资源唯一标示', default=0)
+    
+    # 资源也应该是一个树形结构
+    res_parent = models.ForeignKey(verbose_name='父级资源', to='self', null=True, blank=True)
+    
+    def __str__(self):
+        return self.res_name
+   
+
+class Action(models.Model):
+    """ 操作表，动作表 """
+    class Meta:
+        verbose_name = "操作"
+        verbose_name_plural = verbose_name
+        
+    action_name = models.CharField("操作名称", max_length=36, default='无')
+    action_code = models.CharField('操作唯一标示', default=0)
+    
+    def __str__(self):
+        return self.action_name
+
+
+class Permission(models.Model):
+    """ 权限表 """
+    class Meta:
+        verbose_name = "权限表"
+        verbose_name_plural = verbose_name
+        
+    permission_name = models.CharField("权限名称", max_length=36, default='可以不填')
+    permission_org = models.ForeignKey(verbose_name='什么组织', to=Org, null=True, blank=True)
+    permission_res = models.ForeignKey(verbose_name='什么资源', to=Res, null=True, blank=True)
+    permission_action = models.ForeignKey(verbose_name='什么操作', to=Action, null=True, blank=True)
+    
+    
+    def __str__(self):
+        return self.permission_name
+
+        
+""" ======================================================================================= """
+
+
+class Menu(models.Model):
+    """ 系统菜单资源表 
+    每个功能、资源 当成一个菜单，菜单有url属性，用户通过点击菜单来访问对应功能、资源
+    """
+
+    class Meta:
+        db_table = 'tb_menu'  # 模型映射到数据库名称
+        verbose_name = "菜单"
+        verbose_name_plural = verbose_name
+
+    menu_code = models.IntegerField('菜单唯一标示', default=0)  # 用来去除主键带来的变更性
+    menu_title = models.CharField('菜单标题', max_length=48, default='无')
+    menu_level = models.IntegerField('菜单层级', default=0)
+    menu_url = models.CharField('菜单链接地址', max_length=128, default='#')
+    menu_created_time = models.DateTimeField('创建时间', auto_now_add=True)
+
+    # 设置菜单导航栏数据库表自关联
+    menu_parent = models.ForeignKey(verbose_name='父级菜单', to='self', null=True, blank=True)
+    
+    # 设置菜单资源表与 Res 抽象资源表一对一映射
+    menu_res = models.OneToOneField(to=Res, on_delete=models.CASCADE)
+
+    def __str__(self): return self.menu_title
+
+
+
+
+class Banner(models.Model):
+    """ 系统轮播图模型表 
+    也可以将其变成可授权资源（没必要，轮播图大家都可以看）
+    """
+
+    class Meta:
+        db_table = 'tb_banner'  # 模型映射到数据库名称
+        verbose_name = "轮播图"
+        verbose_name_plural = verbose_name
+
+    banner_title = models.CharField('轮播图标题', max_length=48, default='无')
+    banner_index = models.IntegerField('轮播图顺序', default=1)
+    banner_url = models.CharField('轮播图图片地址', max_length=128, default='#')
+    banner_created_time = models.DateTimeField('创建时间', auto_now_add=True)
+
+    def __str__(self): return self.banner_title
+
+
+
+
+
+
+
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
 
 class Course(models.Model):
-    """ 课程模型表 """
+    """ 课程模型表 
+    这个 课程感觉需要添加到 资源管理里去
+    """
 
     class Meta:
         db_table = 'tb_course'  # 模型映射到数据库名称
@@ -152,77 +302,5 @@ class Comments(models.Model):
     def __str__(self):
         return self.comments_name
 
-
-
-
-
-
-
-
-
-class Banner(models.Model):
-    """ 系统轮播图模型表 """
-
-    class Meta:
-        db_table = 'tb_banner'  # 模型映射到数据库名称
-        verbose_name = "轮播图"
-        verbose_name_plural = verbose_name
-
-    banner_title = models.CharField('轮播图标题', max_length=48, default='无')
-    banner_index = models.IntegerField('轮播图顺序', default=1)
-    banner_url = models.CharField('轮播图图片地址', max_length=128, default='#')
-    banner_created_time = models.DateTimeField('创建时间', auto_now_add=True)
-
-    def __str__(self): return self.banner_title
-
-
-class Menu(models.Model):
-    """ 系统菜单导航模型表 """
-
-    class Meta:
-        db_table = 'tb_menu'  # 模型映射到数据库名称
-        verbose_name = "系统菜单(导航栏)"
-        verbose_name_plural = verbose_name
-
-    menu_title = models.CharField('菜单标题', max_length=48, default='无')
-    menu_level = models.IntegerField('菜单层级', default=0)
-    menu_url = models.CharField('菜单链接地址', max_length=128, default='#')
-    menu_created_time = models.DateTimeField('创建时间', auto_now_add=True)
-
-    # 设置菜单导航栏数据库表自关联
-    menu_parent = models.ForeignKey(verbose_name='父级菜单', to='self', null=True, blank=True)
-
-    def __str__(self): return self.menu_title
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        
+"""    系统考试数据库分析     """       
