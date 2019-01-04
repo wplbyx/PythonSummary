@@ -171,8 +171,8 @@ class Banner(models.Model):
 
 
 
-
-
+""" ======================================================================================= """
+"""    """
 
 class Course(models.Model):
     """ 课程模型表 
@@ -196,6 +196,9 @@ class Course(models.Model):
     course_status = models.CharField('课程状态', choices=CourseStatus, max_length=12)
     course_created_time = models.DateTimeField('创建时间', auto_now_add=True)
     course_updated_time = models.DateTimeField('最后一次更新时间', auto_now_add=True)
+
+    # 设置课程资源表与 Res 抽象资源表一对一映射
+    course_res = models.OneToOneField(to=Res, on_delete=models.CASCADE)
 
     def __str__(self): return self.course_name
 
@@ -302,5 +305,131 @@ class Comments(models.Model):
     def __str__(self):
         return self.comments_name
 
+
+class UserCourse(models.Model):
+    """ 用户课程收藏模型表 """
+
+    class Meta:
+        db_table = 'tb_user_course'  # 模型映射到数据库名称
+        verbose_name = "课程收藏"
+        verbose_name_plural = verbose_name
+
+    comments_name = models.CharField('评论名称', max_length=48, default='menu')
+    comments_msg = models.CharField('评论内容', max_length=1000, default='#')
+    comments_created_time = models.DateTimeField('创建时间', auto_now_add=True)
+
+    # 设置外键: 评论属于哪个用户
+    user_course_fk_user = models.ForeignKey(verbose_name='用户', to=User, on_delete=models.CASCADE)
+
+    # 设置外键: 评论属于哪个课程
+    user_course_fk_course = models.ForeignKey(verbose_name='课程', to=Course, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.comments_name
+
+
+
+
+
+
+
         
-"""    系统考试数据库分析     """       
+"""    系统考试数据库分析     """      
+# 题库, 试卷头表, 试卷详细表, 考试成绩表
+
+class Questions(models.Model):
+    """ 用户课程收藏模型表 """
+
+    class Meta:
+        db_table = 'tb_question'  # 模型映射到数据库名称
+        verbose_name = "试题库"
+        verbose_name_plural = verbose_name
+
+    question_type = (
+        (1, '单选题'),
+        (2, '多选题'),
+        (3, '判断题'),
+    )
+
+    question_name = models.CharField('试题名称', max_length=1024, default='无')
+    question_type = models.IntegerField('试题类型', choices=question_type)
+    question_answer = models.CharField('问题答案', max_length=1024, default='无')
+    question_mark = models.IntegerField('试题是否选中', default=0)
+    question_score = models.IntegerField('试题分数', default=4)
+    question_option1 = models.CharField('预备选项1', max_length=1024, default='无')
+    question_option2 = models.CharField('预备选项2', max_length=1024, default='无')
+    question_option3 = models.CharField('预备选项3', max_length=1024, default='无')
+    question_option4 = models.CharField('预备选项4', max_length=1024, default='无')
+    question_option5 = models.CharField('预备选项5', max_length=1024, default='无')
+    question_option6 = models.CharField('预备选项6', max_length=1024, default='无')
+
+    question_create_time = models.DateTimeField('创建时间', auto_now_add=True)
+    question_modify_time = models.DateTimeField('最后一次更新时间', auto_now_add=True)
+
+    # 设置外键: 试题属于哪个课程
+    question_fk_course = models.ForeignKey(verbose_name='课程', to=Course, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.comments_name 
+
+
+
+class Exams(models.Model):
+    """ 试卷头模型表 
+
+    试卷课程
+    试卷总分
+
+    考试人员  (多对多)
+    单选题 (多对多)
+    多选题 (多对多)
+    判断题 (多对多)
+    
+    考试时间长度
+    开始时间
+    结束时间
+
+
+    """
+
+    class Meta:
+        db_table = 'tb_question'  # 模型映射到数据库名称
+        verbose_name = "试题库"
+        verbose_name_plural = verbose_name
+
+    question_type = (
+        (1, '单选题'),
+        (2, '多选题'),
+        (3, '判断题'),
+    )
+
+    exam_name = models.CharField('试卷名称', max_length=1024, default='无')
+    exam_type = models.IntegerField('试题类型', choices=question_type)
+    exam_answer = models.CharField('问题答案', max_length=1024, default='无')
+    exam_mark = models.IntegerField('试题是否选中', default=0)
+    exam_score = models.IntegerField('试分数', default=4)
+    
+
+    exam_create_time = models.DateTimeField('创建时间', auto_now_add=True)
+    exam_start_time = models.DateTimeField('开始时间', auto_now_add=True)
+    exam_end_time = models.DateTimeField('结束时间', auto_now_add=True)
+    exam_long = models.IntegerField('考试时长(单位h)', default=2)  # 单位h
+
+    # 设置外键: 试卷属于哪个课程
+    exam_fk_course = models.ForeignKey(verbose_name='试卷课程', to=Course, on_delete=models.CASCADE)
+
+    # 设置外键: 试卷属于哪个人员
+    exam_fk_user = models.ForeignKey(verbose_name='考试人员', to=User, on_delete=models.CASCADE)
+
+    
+
+
+
+
+
+
+
+
+
+
+
